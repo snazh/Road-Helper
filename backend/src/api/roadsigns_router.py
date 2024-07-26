@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from backend.src.api.dependecies import roadsigns_service
 from backend.src.schemas.roadsign import RoadSignSchemaAdd
 from backend.src.services.roadsign import RoadSignsService
+from backend.src.services.auth import AuthService
 
 router = APIRouter(
     prefix="/roadsigns",
@@ -16,9 +17,24 @@ router = APIRouter(
 async def add_sign(
         task: RoadSignSchemaAdd,
         signs_service: Annotated[RoadSignsService, Depends(roadsigns_service)],
+
 ):
-    sign_id = await signs_service.add_sign(task)
-    return {"sign_id": sign_id}
+    try:
+        user = current_user
+        sign_id = await signs_service.add_sign(task)
+
+        return {
+            "status": "success",
+            "data": {"sign_id": sign_id, "user": user},
+            "details": "Successful registrations"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "status": "error",
+            "data": None,
+            "details": f"{e}"
+        })
 
 
 @router.get("/get-all-roadsigns", status_code=status.HTTP_200_OK)

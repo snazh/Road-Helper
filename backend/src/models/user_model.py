@@ -14,7 +14,7 @@ class User(Base):
         unique=True, primary_key=True
     )
     username: Mapped[str] = mapped_column(
-        String(length=64), nullable=False
+        String(length=64), unique=True, nullable=False
     )
     registered_at: Mapped[datetime] = mapped_column(  # todo: replace deprecated time method
         TIMESTAMP, default=datetime.utcnow
@@ -37,3 +37,7 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
+
+
+
+

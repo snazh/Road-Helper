@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from datetime import timezone, datetime, timedelta
+from typing import Optional, Dict
 
-from jose import jwt
+from fastapi import Request, HTTPException, status, Response
+from jose import jwt, JWTError
+
 from backend.src.config import auth_settings
 
 
@@ -11,34 +14,42 @@ class AuthRepository(ABC):
     async def create_access_token(self, data: dict) -> str:
         raise NotImplementedError
 
-    # @abstractmethod
-    # async def authenticate(self, username: str, password: str) -> str:
-    #     raise NotImplementedError
-    #
-    # @abstractmethod
-    # async def verify_token(self, token: str) -> bool:
-    #     raise NotImplementedError
+    @abstractmethod
+    async def get_token(self, request: Request) -> Optional[str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def decode_token(self, token: str) -> Optional[Dict]:
+        raise NotImplementedError
 
 
 class JWTAuthRepository(AuthRepository):
+    # def __init__(self, credentials):
+    #     self.auth_credentials = credentials
 
-    async def create_access_token(self, data: dict) -> str:
+    def create_access_token(self, data: dict) -> str:
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(days=30)
         to_encode.update({"exp": expire})
         encode_jwt = jwt.encode(to_encode, auth_settings.AUTH_SECRET_KEY, algorithm=auth_settings.AUTH_ALGO)
         return encode_jwt
 
-    # async def authenticate(self, username: str, password: str) -> str:
-    #     # Perform user authentication (e.g., check username and password against the database)
-    #     # If valid, generate JWT token
-    #     payload = {"username": username}
-    #     token = jwt.encode(payload, self.secret_key, algorithm="HS256")
-    #     return token
-    #
-    # async def verify_token(self, token: str) -> bool:
-    #     try:
-    #         jwt.decode(token, self.secret_key, algorithms=["HS256"])
-    #         return True
-    #     except Exception:
-    #         return False
+    def get_token(self, request: Request) -> Optional[str]:
+        token = request.cookies.get("user_access_token")
+        if token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return token
+
+    def decode_token(self, token: str) -> Optional[Dict]:
+        try:
+            payload = jwt.decode(token, auth_settings.AUTH_SECRET_KEY, algorithms=[auth_settings.AUTH_ALGO])
+            return payload
+        except JWTError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token')
+
+    def delete_token(self, response: Response) -> None:
+        response.delete_cookie(key="users_access_token")

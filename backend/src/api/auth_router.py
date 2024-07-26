@@ -1,11 +1,8 @@
 from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, status, Response
-
-from backend.src.api.dependecies import users_service, auth_service
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from backend.src.api.dependecies import auth_service
 from backend.src.schemas.user import UserSchemaAdd, UserLoginSchema
 from backend.src.services.auth import AuthService
-from backend.src.services.user import UsersService
 
 router = APIRouter(
     prefix="/auth",
@@ -18,21 +15,21 @@ async def register(
         user: UserSchemaAdd,
         service: Annotated[AuthService, Depends(auth_service)],
 ):
-    return await service.register_user(user)
-    # try:
-    #     user_id = await service.register_user(user)
-    #     return {
-    #         "status": "success",
-    #         "data": user_id,
-    #         "details": "Successful registrations"
-    #     }
-    #
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail={
-    #         "status": "error",
-    #         "data": None,
-    #         "details": f"{e}"
-    #     })
+    try:
+        user_id = await service.register_user(user)
+
+        return {
+            "status": "success",
+            "data": user_id,
+            "details": "Successful registrations"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "status": "error",
+            "data": None,
+            "details": str(e)
+        })
 
 
 @router.post("/login", status_code=status.HTTP_201_CREATED)
@@ -48,12 +45,41 @@ async def login(
         return {
             "status": "success",
             "data": token,
-            "details": "Successful registrations"
+            "details": "Successful login"
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail={
             "status": "error",
             "data": None,
-            "details": f"{e}"
+            "details": str(e)
+        })
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+        response: Response,
+        service: Annotated[AuthService, Depends(auth_service)]
+):
+    await service.logout(response)
+
+
+@router.get("/users/me", status_code=status.HTTP_200_OK)
+async def read_current_user(
+        request: Request,
+        service: Annotated[AuthService, Depends(auth_service)]
+):
+    try:
+
+        current_user = await service.get_current_user(request)
+        return {
+            "status": "success",
+            "data": current_user,
+            "details": "Current user fetched successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "status": "error",
+            "data": None,
+            "details": str(e)
         })

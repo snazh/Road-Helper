@@ -1,6 +1,5 @@
 from backend.src.repositories.roadsign import RoadSignsRepository
 from backend.src.repositories.user import UserRepository
-
 from backend.src.services.roadsign import RoadSignsService
 from backend.src.services.user import UsersService
 from backend.src.services.auth import AuthService
@@ -17,3 +16,5 @@ def users_service():
 
 def auth_service():
     return AuthService(JWTAuthRepository, UserRepository)
+
+

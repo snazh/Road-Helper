@@ -1,7 +1,6 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
 from backend.src.api.auth_router import router as auth_router
 from backend.src.api.roadsigns_router import router as roadsigns_router
 from backend.src.api.user_router import router as user_router
@@ -12,9 +11,11 @@ app = FastAPI(
 )
 
 # including all routers
+app.include_router(auth_router)
 app.include_router(roadsigns_router)
 app.include_router(user_router)
-app.include_router(auth_router)
+
+
 # Configuring API endpoints for Front-End
 origins = [
     "http://localhost:3000",

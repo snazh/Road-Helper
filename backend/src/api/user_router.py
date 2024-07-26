@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 
-from backend.src.api.dependecies import users_service
-from backend.src.schemas.user import UserSchemaAdd
 from backend.src.services.user import UsersService
+from backend.src.api.dependecies import users_service, auth_service
+
+from backend.src.services.auth import AuthService
 
 router = APIRouter(
     prefix="/users",
@@ -12,33 +13,14 @@ router = APIRouter(
 )
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(
-        user: UserSchemaAdd,
-        service: Annotated[UsersService, Depends(users_service)],
-):
-    try:
-        user_id = await service.add_user(user)
-        return {
-            "status": "success",
-            "data": user_id,
-            "details": "Successful registrations"
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={
-            "status": "error",
-            "data": None,
-            "details": f"{e}"
-        })
-
-
 @router.get("/get-all-users", status_code=status.HTTP_200_OK)
 async def get_all_users(
+        request: Request,
         service: Annotated[UsersService, Depends(users_service)],
+        auth: Annotated[AuthService, Depends(auth_service)]
 ):
-    signs = await service.get_all_users()
-    return signs
+    users = await service.get_all_users()
+    return {"users": users}
 
 
 @router.get("/get-user", status_code=status.HTTP_200_OK)
@@ -54,12 +36,12 @@ async def get_specific_user(
 
 @router.delete("/delete-user", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
-        sign_id: int,
+        user_id: int,
         service: Annotated[UsersService, Depends(users_service)],
 
 ):
     try:
-        await service.delete_user(sign_id)
+        await service.delete_user(user_id)
         return {
             "status": "success",
             "data": None,

@@ -1,9 +1,8 @@
-from backend.src.models.user_model import User
 from backend.src.schemas.user import UserLoginSchema, UserSchemaAdd
 from backend.src.services.password import PasswordService
 from backend.src.utils.sqlalchemy.repository import SQLAlchemyRepository
 from backend.src.utils.auth.auth import JWTAuthRepository
-from fastapi import Response
+from fastapi import Response, Depends, Request, HTTPException, status
 
 
 class AuthService:
@@ -19,25 +18,38 @@ class AuthService:
         return user_id
 
     async def authenticate_user(self, user_data: UserLoginSchema) -> dict | None:
-
         user = await self.users_repo.filter(filter_column="username", value=user_data.username)
-        print(user)
         is_match = self.password_service.verify_password(plain_password=user_data.password,
                                                          hashed_password=user["hashed_password"])
         if user is None or not is_match:
             return None
-
         else:
             return user
 
-    async def authorize_user(self, user_data: UserLoginSchema, response: Response):
+    async def authorize_user(self, user_data: UserLoginSchema, response: Response) -> dict | None:
         user = await self.authenticate_user(user_data)
         if user is None:
-            print(False)
-            return None
-        access_token = await self.auth_repo.create_access_token({"sub": user["id"]})
-        response.set_cookie(key="users_access_token", value=access_token, httponly=True)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+        access_token = self.auth_repo.create_access_token({"sub": user["username"]})
+        response.set_cookie(key="user_access_token", value=access_token, httponly=True)
         return {
             'access_token': access_token,
             'refresh_token': None
         }
+
+    async def logout(self, response: Response) -> None:
+        self.auth_repo.delete_token(response)
+
+    async def get_current_user(self, request: Request) -> dict:
+
+        token = self.auth_repo.get_token(request)
+        payload = self.auth_repo.decode_token(token)
+
+        user = await self.users_repo.filter(filter_column="username", value=payload['sub'])
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return user
